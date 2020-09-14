@@ -4,6 +4,7 @@ STANDALONE_EXAMPLES:=\
 	Library/agm \
 	Library/binary \
 	Library/binomial \
+	Library/bitmatch \
 	Examples/borsuk \
 	Examples/brunn_minkowski \
 	Library/card \
@@ -26,15 +27,19 @@ STANDALONE_EXAMPLES:=\
 	Examples/inverse_bug_puzzle_tac \
 	RichterHilbertAxiomGeometry/inverse_bug_puzzle_read \
 	Library/isum \
+	Library/jacobi \
 	Examples/kb \
 	Examples/lagrange_lemma \
 	Examples/lucas_lehmer \
 	Examples/mangoldt \
 	Examples/mccarthy \
+	Examples/miller_rabin \
 	Examples/misiurewicz \
 	Examples/mizar \
+	Library/modmul_group \
 	Library/multiplicative \
 	Examples/multiwf \
+	Examples/nist_curves \
 	Examples/padics \
 	Examples/pell \
 	Library/permutations \
@@ -42,6 +47,7 @@ STANDALONE_EXAMPLES:=\
 	Library/products \
 	Examples/prog \
 	Examples/prover9 \
+	Examples/pseudoprime \
 	Library/q \
 	Examples/rectypes \
 	Library/ringtheory \
@@ -54,6 +60,7 @@ STANDALONE_EXAMPLES:=\
 	Examples/vitali \
 	Library/wo \
 	Library/words \
+	Examples/zolotarev \
 	Library/analysis-transc \
 	Library/prime-pratt \
 	Library/prime-pocklington \

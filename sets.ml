@@ -1462,19 +1462,32 @@ let FINITE_FINITE_PREIMAGE = prove
   REWRITE_TAC[IN_UNIV]);;
 
 let FINITE_IMAGE_INJ_EQ = prove
- (`!(f:A->B) s. (!x y. x IN s /\ y IN s /\ (f(x) = f(y)) ==> (x = y))
-                ==> (FINITE(IMAGE f s) <=> FINITE s)`,
+ (`!(f:A->B) s.
+        (!x y. x IN s /\ y IN s /\ f(x) = f(y) ==> x = y)
+        ==> (FINITE(IMAGE f s) <=> FINITE s)`,
   REPEAT STRIP_TAC THEN EQ_TAC THEN ASM_SIMP_TAC[FINITE_IMAGE] THEN
   POP_ASSUM MP_TAC THEN REWRITE_TAC[IMP_IMP] THEN
   DISCH_THEN(MP_TAC o MATCH_MP FINITE_IMAGE_INJ_GENERAL) THEN
   MATCH_MP_TAC EQ_IMP THEN AP_TERM_TAC THEN SET_TAC[]);;
 
 let FINITE_IMAGE_INJ = prove
- (`!(f:A->B) A. (!x y. (f(x) = f(y)) ==> (x = y)) /\
-                FINITE A ==> FINITE {x | f(x) IN A}`,
+ (`!(f:A->B) A.
+        (!x y. f(x) = f(y) ==> x = y) /\ FINITE A
+        ==> FINITE {x | f(x) IN A}`,
   REPEAT GEN_TAC THEN
   MP_TAC(SPECL [`f:A->B`; `A:B->bool`; `UNIV:A->bool`]
     FINITE_IMAGE_INJ_GENERAL) THEN REWRITE_TAC[IN_UNIV]);;
+
+let FINITE_IMAGE_GEN = prove
+ (`!(f:A->B) (g:A->C) s t.
+        IMAGE f s SUBSET t /\ FINITE t /\
+        (!x y. x IN s /\ y IN s /\ f x = f y ==> g x = g y)
+        ==> FINITE(IMAGE g s)`,
+  REPEAT STRIP_TAC THEN
+  FIRST_X_ASSUM(MP_TAC o GEN_REWRITE_RULE I [FUNCTION_FACTORS_LEFT_GEN]) THEN
+  DISCH_THEN(X_CHOOSE_TAC `h:B->C`) THEN
+  SUBGOAL_THEN `IMAGE g s = IMAGE (h:B->C) (IMAGE (f:A->B) s)` SUBST1_TAC THENL
+   [ASM SET_TAC[]; ASM_MESON_TAC[FINITE_IMAGE; FINITE_SUBSET]]);;
 
 let INFINITE_IMAGE = prove
  (`!f:A->B s.
@@ -2187,6 +2200,12 @@ let SUBSET_CARD_EQ = prove
  (`!s t. FINITE t /\ s SUBSET t ==> (CARD s = CARD t <=> s = t)`,
   MESON_TAC[CARD_SUBSET_EQ; LE_ANTISYM; CARD_SUBSET]);;
 
+let FINITE_CARD_LE_SUBSET = prove
+ (`!s (t:A->bool) n.
+        s SUBSET t /\ FINITE t /\ CARD t <= n
+        ==> FINITE s /\ CARD s <= n`,
+  MESON_TAC[FINITE_SUBSET; CARD_SUBSET; LE_TRANS]);;
+
 let CARD_PSUBSET = prove
  (`!(a:A->bool) b. a PSUBSET b /\ FINITE(b) ==> CARD(a) < CARD(b)`,
   REPEAT GEN_TAC THEN REWRITE_TAC[SET_RULE
@@ -2198,6 +2217,14 @@ let CARD_PSUBSET = prove
   ASM_SIMP_TAC[CARD_DELETE; ARITH_RULE `n - 1 < n <=> ~(n = 0)`] THEN
   ASM_MESON_TAC[CARD_EQ_0; MEMBER_NOT_EMPTY]);;
 
+let CARD_PSUBSET_IMP = prove
+ (`!a b. a SUBSET b /\ ~(CARD a = CARD b) ==> a PSUBSET b`,
+  REWRITE_TAC[PSUBSET] THEN MESON_TAC[]);;
+
+let CARD_PSUBSET_EQ = prove
+ (`!a b. FINITE b /\ a SUBSET b ==> (a PSUBSET b <=> CARD a < CARD b)`,
+  MESON_TAC[CARD_PSUBSET_IMP; CARD_PSUBSET; LT_REFL]);;
+
 let CARD_UNION_LE = prove
  (`!s t:A->bool.
         FINITE s /\ FINITE t ==> CARD(s UNION t) <= CARD(s) + CARD(t)`,
@@ -2207,6 +2234,13 @@ let CARD_UNION_LE = prove
   MATCH_MP_TAC EQ_IMP_LE THEN
   ONCE_REWRITE_TAC[SET_RULE `s UNION t = s UNION (t DIFF s)`] THEN
   MATCH_MP_TAC CARD_UNION THEN ASM_SIMP_TAC[FINITE_DIFF] THEN SET_TAC[]);;
+
+let FINITE_CARD_LE_UNION = prove
+ (`!s (t:A->bool) m n.
+        (FINITE s /\ CARD s <= m) /\
+        (FINITE t /\ CARD t <= n)
+        ==> FINITE(s UNION t) /\ CARD(s UNION t) <= m + n`,
+  MESON_TAC[FINITE_UNION; CARD_UNION_LE; LE_ADD2; LE_TRANS]);;
 
 let CARD_UNIONS_LE = prove
  (`!s t:A->B->bool m n.
@@ -2283,6 +2317,11 @@ let CARD_IMAGE_LE = prove
   REPEAT GEN_TAC THEN COND_CASES_TAC THEN
   DISCH_THEN(MP_TAC o CONJUNCT1) THEN ARITH_TAC);;
 
+let FINITE_CARD_LE_IMAGE = prove
+ (`!(f:A->B) s n.
+        FINITE s /\ CARD s <= n ==> FINITE(IMAGE f s) /\ CARD(IMAGE f s) <= n`,
+  MESON_TAC[CARD_IMAGE_LE; LE_TRANS; FINITE_IMAGE]);;
+
 let CARD_IMAGE_INJ_EQ = prove
  (`!f:A->B s t.
         FINITE s /\
@@ -2329,6 +2368,47 @@ let CARD_IMAGE_EQ_INJ = prove
   ASM_SIMP_TAC[CARD_DELETE; CARD_EQ_0;
                ARITH_RULE `n - 1 < n <=> ~(n = 0)`] THEN
   ASM SET_TAC[]);;
+
+let EXISTS_SMALL_SUBSET_IMAGE_INJ = prove
+ (`!P f s n.
+    (?t. FINITE t /\ CARD t < n /\ t SUBSET IMAGE f s /\ P t) <=>
+    (?t. FINITE t /\ CARD t < n /\ t SUBSET s /\
+         (!x y. x IN t /\ y IN t ==> (f x = f y <=> x = y)) /\
+         P (IMAGE f t))`,
+  ONCE_REWRITE_TAC[TAUT `p /\ q /\ r /\ s <=> r /\ s /\ p /\ q`] THEN
+  REPEAT GEN_TAC THEN REWRITE_TAC[EXISTS_SUBSET_IMAGE_INJ] THEN
+  REWRITE_TAC[CONJ_ASSOC] THEN AP_TERM_TAC THEN ABS_TAC THEN
+  MATCH_MP_TAC(TAUT
+   `(p ==> (q <=> s)) /\ (p /\ s ==> (r <=> t))
+    ==> ((p /\ q) /\ r <=> (p /\ s) /\ t)`) THEN
+  MESON_TAC[CARD_IMAGE_INJ; FINITE_IMAGE_INJ_EQ]);;
+
+let FORALL_SMALL_SUBSET_IMAGE_INJ = prove
+ (`!P f s n.
+    (!t. FINITE t /\ CARD t < n /\ t SUBSET IMAGE f s ==> P t) <=>
+    (!t. FINITE t /\ CARD t < n /\ t SUBSET s /\
+         (!x y. x IN t /\ y IN t ==> (f x = f y <=> x = y))
+         ==> P (IMAGE f t))`,
+  REPEAT GEN_TAC THEN
+  ONCE_REWRITE_TAC[MESON[] `(!t. p t) <=> ~(?t. ~p t)`] THEN
+  REWRITE_TAC[NOT_IMP; EXISTS_SMALL_SUBSET_IMAGE_INJ; GSYM CONJ_ASSOC]);;
+
+let EXISTS_SMALL_SUBSET_IMAGE = prove
+ (`!P f s n.
+    (?t. FINITE t /\ CARD t < n /\ t SUBSET IMAGE f s /\ P t) <=>
+    (?t. FINITE t /\ CARD t < n /\ t SUBSET s /\
+         P (IMAGE f t))`,
+  REPEAT GEN_TAC THEN EQ_TAC THENL
+   [REWRITE_TAC[EXISTS_SMALL_SUBSET_IMAGE_INJ] THEN MESON_TAC[];
+    MESON_TAC[FINITE_IMAGE; CARD_IMAGE_LE; LET_TRANS; IMAGE_SUBSET]]);;
+
+let FORALL_SMALL_SUBSET_IMAGE = prove
+ (`!P f s n.
+    (!t. FINITE t /\ CARD t < n /\ t SUBSET IMAGE f s ==> P t) <=>
+    (!t. FINITE t /\ CARD t < n /\ t SUBSET s ==> P (IMAGE f t))`,
+  REPEAT GEN_TAC THEN
+  ONCE_REWRITE_TAC[MESON[] `(!t. p t) <=> ~(?t. ~p t)`] THEN
+  REWRITE_TAC[NOT_IMP; EXISTS_SMALL_SUBSET_IMAGE; GSYM CONJ_ASSOC]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Choosing a smaller subset of a given size.                                *)
@@ -2409,6 +2489,49 @@ let CARD_LE_1 = prove
   GEN_TAC THEN REWRITE_TAC[ARITH_RULE `c <= 1 <=> c = 0 \/ c = 1`] THEN
   REWRITE_TAC[LEFT_OR_DISTRIB; GSYM HAS_SIZE] THEN
   CONV_TAC(ONCE_DEPTH_CONV HAS_SIZE_CONV) THEN SET_TAC[]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Lemmas about the parity of the set of fixed points of an involution.      *)
+(* ------------------------------------------------------------------------- *)
+
+let INVOLUTION_EVEN_NOFIXPOINTS = prove
+ (`!f (s:A->bool).
+        FINITE s /\ (!x. x IN s ==> f x IN s /\ ~(f x = x) /\ f(f x) = x)
+        ==> EVEN(CARD s)`,
+  REPEAT GEN_TAC THEN ABBREV_TAC `n = CARD(s:A->bool)` THEN
+  POP_ASSUM MP_TAC THEN
+  REWRITE_TAC[TAUT `p ==> q /\ r ==> s <=> (q /\ p) /\ r ==> s`] THEN
+  MAP_EVERY (fun t -> SPEC_TAC(t,t)) [`s:A->bool`; `n:num`] THEN
+  MATCH_MP_TAC num_WF THEN X_GEN_TAC `n:num` THEN DISCH_TAC THEN
+  ASM_CASES_TAC `n = 0` THEN ASM_REWRITE_TAC[ARITH] THEN
+  MATCH_MP_TAC SET_PROVE_CASES THEN ASM_REWRITE_TAC[CARD_CLAUSES] THEN
+  MAP_EVERY X_GEN_TAC [`a:A`; `s:A->bool`] THEN
+  SIMP_TAC[FINITE_INSERT; IMP_CONJ; CARD_CLAUSES; FORALL_IN_INSERT] THEN
+  REWRITE_TAC[IN_INSERT] THEN ASM_CASES_TAC `f(a:A) = a` THEN
+  ASM_REWRITE_TAC[] THEN ASM_CASES_TAC `n = 1` THEN
+  ASM_SIMP_TAC[ARITH_RULE `SUC n = 1 <=> n = 0`; CARD_EQ_0; NOT_IN_EMPTY] THEN
+  REPEAT STRIP_TAC THEN FIRST_X_ASSUM(MP_TAC o SPEC `n - 2`) THEN
+  ANTS_TAC THENL [ASM_ARITH_TAC; ALL_TAC] THEN
+  DISCH_THEN(MP_TAC o SPEC `s DELETE (f:A->A) a`) THEN
+  ASM_SIMP_TAC[FINITE_DELETE; CARD_DELETE; EVEN_SUB; ARITH] THEN
+  ASM_REWRITE_TAC[ARITH_RULE `n <= 2 <=> n = 0 \/ n = 1 \/ n = 2`] THEN
+  ASM_CASES_TAC `n = 2` THEN ASM_REWRITE_TAC[ARITH] THEN
+  DISCH_THEN MATCH_MP_TAC THEN CONJ_TAC THENL
+   [ASM_ARITH_TAC; ASM SET_TAC[]]);;
+
+let INVOLUTION_EVEN_FIXPOINTS = prove
+ (`!f (s:A->bool).
+        FINITE s /\ (!x. x IN s ==> f x IN s /\ f(f x) = x)
+        ==> (EVEN(CARD {x | x IN s /\ f x = x}) <=> EVEN(CARD s))`,
+  REPEAT STRIP_TAC THEN TRANS_TAC EQ_TRANS
+  `EVEN(CARD({x:A | x IN s /\ f x = x} UNION {x | x IN s /\ ~(f x = x)}))` THEN
+  CONJ_TAC THENL [ALL_TAC; AP_TERM_TAC THEN AP_TERM_TAC THEN SET_TAC[]] THEN
+  ASM_SIMP_TAC[EVEN_ADD; CARD_UNION; FINITE_RESTRICT; SET_RULE
+   `{x | x IN s /\ P x} INTER {x | x IN s /\ ~P x} = {}`] THEN
+  REWRITE_TAC[TAUT `(p <=> (p <=> q)) <=> q`] THEN
+  MATCH_MP_TAC INVOLUTION_EVEN_NOFIXPOINTS THEN
+  EXISTS_TAC `f:A->A` THEN ASM_SIMP_TAC[FINITE_RESTRICT] THEN
+  ASM SET_TAC[]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Cardinality of product.                                                   *)
@@ -2711,6 +2834,10 @@ let EXTENSIONAL_EQ = prove
 
 let RESTRICTION = new_definition
   `RESTRICTION s (f:A->B) x = if x IN s then f x else ARB`;;
+
+let RESTRICTION_THM = prove
+ (`!s (f:A->B). RESTRICTION s f = \x. if x IN s then f x else ARB`,
+  REWRITE_TAC[FUN_EQ_THM; RESTRICTION]);;
 
 let RESTRICTION_DEFINED = prove
  (`!s f:A->B x. x IN s ==> RESTRICTION s f x = f x`,
@@ -3188,6 +3315,12 @@ let FINITE_POWERSET_EQ = prove
     MATCH_MP_TAC EQ_IMP THEN MATCH_MP_TAC FINITE_IMAGE_INJ_EQ THEN
     SET_TAC[]]);;
 
+let FINITE_RESTRICTED_SUBSETS = prove
+ (`!P s:A->bool. FINITE s ==> FINITE {t | t SUBSET s /\ P t}`,
+  REPEAT STRIP_TAC THEN MATCH_MP_TAC FINITE_SUBSET THEN
+  EXISTS_TAC `{t:A->bool | t SUBSET s}` THEN
+  ASM_SIMP_TAC[FINITE_POWERSET] THEN SET_TAC[]);;
+
 let FINITE_UNIONS = prove
  (`!s:(A->bool)->bool.
         FINITE(UNIONS s) <=> FINITE s /\ (!t. t IN s ==> FINITE t)`,
@@ -3196,6 +3329,18 @@ let FINITE_UNIONS = prove
   DISCH_THEN(MP_TAC o MATCH_MP FINITE_POWERSET) THEN
   POP_ASSUM MP_TAC THEN REWRITE_TAC[CONTRAPOS_THM] THEN
   MATCH_MP_TAC(REWRITE_RULE[IMP_CONJ_ALT] FINITE_SUBSET) THEN SET_TAC[]);;
+
+let FINITE_CARD_LE_UNIONS = prove
+ (`!s (t:A->B->bool) m n.
+        (!x. x IN s ==> FINITE(t x) /\ CARD(t x) <= n) /\
+        FINITE s /\ CARD s <= m
+        ==> FINITE(UNIONS {t x | x IN s}) /\
+            CARD(UNIONS {t x | x IN s}) <= m * n`,
+  REPEAT STRIP_TAC THEN
+  ASM_SIMP_TAC[FINITE_UNIONS; FORALL_IN_GSPEC; FINITE_IMAGE; SIMPLE_IMAGE] THEN
+  TRANS_TAC LE_TRANS `CARD(s:A->bool) * n` THEN
+  ASM_REWRITE_TAC[GSYM SIMPLE_IMAGE; LE_MULT_RCANCEL] THEN
+  MATCH_MP_TAC CARD_UNIONS_LE THEN ASM_REWRITE_TAC[HAS_SIZE]);;
 
 let POWERSET_CLAUSES = prove
  (`{s | s SUBSET {}} = {{}} /\
@@ -4140,6 +4285,23 @@ let IMAGE_IMP_INJECTIVE = prove
        ==> !x y. x IN s /\ y IN s /\ (f x = f y) ==> (x = y)`,
   MESON_TAC[IMAGE_IMP_INJECTIVE_GEN]);;
 
+let HAS_SIZE_IMAGE_INJ_RESTRICT = prove
+ (`!(f:A->B) s t P n.
+      FINITE s /\ FINITE t /\ CARD s = CARD t /\
+      IMAGE f s SUBSET t /\
+      (!x y. x IN s /\ y IN s /\ f x = f y ==> x = y) /\
+      {x | x IN s /\ P(f x)} HAS_SIZE n
+      ==> {x | x IN t /\ P x} HAS_SIZE n`,
+  REPEAT STRIP_TAC THEN
+  SUBGOAL_THEN
+   `{x | x IN t /\ P x} = IMAGE (f:A->B) {x | x IN s /\ P(f x)}`
+  SUBST1_TAC THENL
+   [MP_TAC(ISPECL [`s:A->bool`; `t:B->bool`; `f:A->B`]
+        SURJECTIVE_IFF_INJECTIVE_GEN) THEN
+    ASM_REWRITE_TAC[] THEN ASM SET_TAC[];
+    MATCH_MP_TAC HAS_SIZE_IMAGE_INJ THEN
+    ASM_REWRITE_TAC[] THEN ASM SET_TAC[]]);;
+
 (* ------------------------------------------------------------------------- *)
 (* Converse relation between cardinality and injection.                      *)
 (* ------------------------------------------------------------------------- *)
@@ -4278,6 +4440,21 @@ let CARD_EQ_BIJECTIONS = prove
   MATCH_MP_TAC MONO_EXISTS THEN REWRITE_TAC[SURJECTIVE_ON_RIGHT_INVERSE] THEN
   GEN_TAC THEN REWRITE_TAC[LEFT_AND_EXISTS_THM; RIGHT_AND_EXISTS_THM] THEN
   MATCH_MP_TAC MONO_EXISTS THEN MESON_TAC[]);;
+
+let CARD_EQ_BIJECTIONS_SPECIAL = prove
+ (`!s t (a:A) (b:B).
+         FINITE s /\ FINITE t /\ CARD s = CARD t /\ a IN s /\ b IN t
+         ==> ?f g. f a = b /\ g b = a /\
+                   (!x. x IN s ==> f x IN t /\ g (f x) = x) /\
+                   (!y. y IN t ==> g y IN s /\ f (g y) = y)`,
+  REPEAT STRIP_TAC THEN
+  MP_TAC(ISPECL [`s DELETE (a:A)`; `t DELETE (b:B)`]
+        CARD_EQ_BIJECTIONS) THEN
+  ASM_SIMP_TAC[FINITE_DELETE; CARD_DELETE; IN_DELETE; LEFT_IMP_EXISTS_THM] THEN
+  MAP_EVERY X_GEN_TAC [`f:A->B`; `g:B->A`] THEN STRIP_TAC THEN
+  EXISTS_TAC `\x. if x = a then b else (f:A->B) x` THEN
+  EXISTS_TAC `\y. if y = b then a else (g:B->A) y` THEN
+  ASM_MESON_TAC[]);;
 
 let BIJECTIONS_HAS_SIZE = prove
  (`!s t f:A->B g.

@@ -7,6 +7,7 @@
 (*              (c) Copyright, John Harrison 1998-2007                       *)
 (*                 (c) Copyright, Marco Maggesi 2015                         *)
 (*      (c) Copyright, Andrea Gabrielli, Marco Maggesi 2017-2018             *)
+(*                (c) Copyright, Mario Carneiro 2020                         *)
 (* ========================================================================= *)
 
 needs "recursion.ml";;
@@ -260,6 +261,10 @@ let EXP_MULT = prove
    [CONV_TAC(ONCE_DEPTH_CONV SYM_CONV) THEN
     INDUCT_TAC THEN ASM_REWRITE_TAC[EXP; MULT_CLAUSES];
     REWRITE_TAC[MULT_EXP] THEN MATCH_ACCEPT_TAC MULT_SYM]);;
+
+let EXP_EXP = prove
+ (`!x m n. (x EXP m) EXP n = x EXP (m * n)`,
+  REWRITE_TAC[EXP_MULT]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Define the orderings recursively too.                                     *)
@@ -1278,6 +1283,10 @@ let MOD_MOD_LE = prove
   REPEAT STRIP_TAC THEN MATCH_MP_TAC MOD_LT THEN
   ASM_MESON_TAC[DIVISION; LTE_TRANS]);;
 
+let MOD_EVEN_2 = prove
+ (`!m n. EVEN n ==> m MOD n MOD 2 = m MOD 2`,
+  SIMP_TAC[EVEN_EXISTS; LEFT_IMP_EXISTS_THM; MOD_MOD]);;
+
 let DIV_MULT2 = prove
  (`!m n p. ~(m = 0) ==> ((m * n) DIV (m * p) = n DIV p)`,
   REPEAT STRIP_TAC THEN ASM_CASES_TAC `p = 0` THEN
@@ -1361,6 +1370,11 @@ let DIV_EQ_0 = prove
     MATCH_MP_TAC DIV_UNIQ THEN EXISTS_TAC `m:num` THEN
     ASM_REWRITE_TAC[MULT_CLAUSES; ADD_CLAUSES]]);;
 
+let MOD_DIV_EQ_0 = prove
+ (`!m n. ~(n = 0) ==> (m MOD n) DIV n = 0`,
+  REPEAT GEN_TAC THEN
+  DISCH_THEN (fun th -> IMP_REWRITE_TAC [th; DIV_EQ_0; MOD_LT_EQ]));;
+
 let MOD_EQ_0 = prove
  (`!m n. (m MOD n = 0) <=> ?q. m = q * n`,
   REPEAT GEN_TAC THEN ASM_CASES_TAC `n = 0` THEN
@@ -1370,6 +1384,16 @@ let MOD_EQ_0 = prove
     ASM_SIMP_TAC[MULT_CLAUSES; ADD_CLAUSES; DIVISION] THEN MESON_TAC[];
     MATCH_MP_TAC MOD_UNIQ THEN ASM_SIMP_TAC[ADD_CLAUSES; MULT_AC] THEN
     ASM_MESON_TAC[NOT_LE; CONJUNCT1 LE]]);;
+
+let DIV_EQ_SELF = prove
+ (`!m n. m DIV n = m <=> m = 0 \/ n = 1`,
+  REPEAT GEN_TAC THEN ASM_CASES_TAC `m = 0` THEN ASM_REWRITE_TAC[DIV_0] THEN
+  ASM_CASES_TAC `n = 1` THEN ASM_REWRITE_TAC[DIV_1] THEN
+  ASM_CASES_TAC `n = 0` THEN ASM_REWRITE_TAC[DIV_ZERO] THEN
+  MATCH_MP_TAC LT_IMP_NE THEN ASM_SIMP_TAC[RDIV_LT_EQ] THEN
+  GEN_REWRITE_TAC LAND_CONV [GSYM(el 2 (CONJUNCTS MULT_CLAUSES))] THEN
+  ASM_REWRITE_TAC[LT_MULT_RCANCEL] THEN
+  REWRITE_TAC[GSYM NOT_LE; ONE; LE] THEN ASM_REWRITE_TAC[GSYM ONE]);;
 
 let MOD_REFL = prove
  (`!n. n MOD n = 0`,
@@ -1390,6 +1414,15 @@ let ODD_MOD = prove
 let MOD_2_CASES = prove
  (`!n. n MOD 2 = if EVEN n then 0 else 1`,
   MESON_TAC[EVEN_MOD; ODD_MOD; NOT_ODD]);;
+
+let EVEN_MOD_EVEN = prove
+ (`!m n. EVEN n ==> (EVEN(m MOD n) <=> EVEN m)`,
+  REPEAT STRIP_TAC THEN REWRITE_TAC[EVEN_MOD] THEN
+  ASM_SIMP_TAC[MOD_EVEN_2]);;
+
+let ODD_MOD_EVEN = prove
+ (`!m n. EVEN n ==> (ODD(m MOD n) <=> ODD m)`,
+  SIMP_TAC[GSYM NOT_EVEN; EVEN_MOD_EVEN]);;
 
 let MOD_MULT_RMOD = prove
  (`!m n p. (m * (p MOD n)) MOD n = (m * p) MOD n`,
@@ -1590,6 +1623,22 @@ let DIV_EXP,MOD_EXP = (CONJ_PAIR o prove)
   REWRITE_TAC[LT; GSYM NOT_LT; ONE; TWO] THEN
   ASM_REWRITE_TAC[SYM ONE; GSYM NOT_LE]);;
 
+let FORALL_LT_MOD_THM = prove
+ (`!P n. (!a. a < n ==> P a) <=> n = 0 \/ !a. P(a MOD n)`,
+  MESON_TAC[LT; MOD_EQ_SELF; MOD_LT_EQ]);;
+
+let FORALL_MOD_THM = prove
+ (`!P n. ~(n = 0) ==> ((!a. P(a MOD n)) <=> (!a. a < n ==> P a))`,
+  SIMP_TAC[FORALL_LT_MOD_THM]);;
+
+let EXISTS_LT_MOD_THM = prove
+ (`!P n. (?a. a < n /\ P a) <=> ~(n = 0) /\ ?a. P(a MOD n)`,
+  MESON_TAC[LT; MOD_EQ_SELF; MOD_LT_EQ]);;
+
+let EXISTS_MOD_THM = prove
+ (`!P n. ~(n = 0) ==> ((?a. P(a MOD n)) <=> (?a. a < n /\ P a))`,
+  SIMP_TAC[EXISTS_LT_MOD_THM]);;
+
 (* ------------------------------------------------------------------------- *)
 (* Theorems for eliminating cutoff subtraction, predecessor, DIV and MOD.    *)
 (* We have versions that introduce universal or existential quantifiers.     *)
@@ -1627,6 +1676,25 @@ let DIVMOD_ELIM_THM' = prove
         ?q r. (n = 0 /\ q = 0 /\ r = m \/ m = q * n + r /\ r < n) /\ P q r`,
   MP_TAC(INST [`\x:num y:num. ~P x y`,`P:num->num->bool`] DIVMOD_ELIM_THM) THEN
   MESON_TAC[]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Pushing and pulling to combine nested MOD terms into a single MOD.        *)
+(* ------------------------------------------------------------------------- *)
+
+let MOD_DOWN_CONV =
+  let MOD_SUC_MOD = METIS[ADD1; MOD_ADD_MOD; MOD_MOD_REFL]
+   `(SUC(m MOD n)) MOD n = SUC m MOD n` in
+  let addmul_conv = GEN_REWRITE_CONV I
+    [GSYM MOD_SUC_MOD; GSYM MOD_ADD_MOD; GSYM MOD_MULT_MOD2; GSYM MOD_EXP_MOD]
+  and mod_conv = GEN_REWRITE_CONV I [MOD_MOD_REFL] in
+  let rec downconv tm =
+   ((addmul_conv THENC LAND_CONV downconv) ORELSEC
+    (mod_conv THENC downconv) ORELSEC
+    SUB_CONV downconv) tm
+  and upconv =
+    GEN_REWRITE_CONV DEPTH_CONV
+     [MOD_SUC_MOD; MOD_ADD_MOD; MOD_MULT_MOD2; MOD_EXP_MOD; MOD_MOD_REFL] in
+  downconv THENC upconv;;
 
 (* ------------------------------------------------------------------------- *)
 (* Crude but useful conversion for cancelling down equations.                *)
@@ -1679,6 +1747,30 @@ let MINIMAL = prove
  (`!P. (?n. P n) <=> P((minimal) P) /\ (!m. m < (minimal) P ==> ~(P m))`,
   GEN_TAC THEN REWRITE_TAC[minimal] THEN CONV_TAC(RAND_CONV SELECT_CONV) THEN
   REWRITE_TAC[GSYM num_WOP]);;
+
+let MINIMAL_UNIQUE = prove
+ (`!P n. P n /\ (!m. m < n ==> ~P m) ==> (minimal) P = n`,
+  REPEAT STRIP_TAC THEN REWRITE_TAC[minimal] THEN
+  MATCH_MP_TAC SELECT_UNIQUE THEN ASM_MESON_TAC[LT_CASES]);;
+
+let LE_MINIMAL = prove
+ (`!P n.
+        (?r. P r) ==> (n <= (minimal) P <=> !i. P i ==> n <= i)`,
+  REPEAT GEN_TAC THEN GEN_REWRITE_TAC LAND_CONV [MINIMAL] THEN
+  MESON_TAC[NOT_LE; LE_TRANS]);;
+
+let MINIMAL_LE = prove
+ (`!P n. (?r. P r) ==> ((minimal) P <= n <=> ?i. i <= n /\ P i)`,
+  REWRITE_TAC[GSYM NOT_LT] THEN REWRITE_TAC[GSYM LE_SUC_LT] THEN
+  SIMP_TAC[LE_MINIMAL] THEN MESON_TAC[]);;
+
+let MINIMAL_UBOUND = prove
+ (`!P n. P n ==> (minimal) P <= n`,
+  MESON_TAC[MINIMAL; NOT_LT]);;
+
+let MINIMAL_LBOUND = prove
+ (`!P n. (?r. P r) /\ (!m. m < n ==> ~P m) ==> n <= (minimal) P`,
+  SIMP_TAC[LE_MINIMAL] THEN MESON_TAC[NOT_LT]);;
 
 (* ------------------------------------------------------------------------- *)
 (* A common lemma for transitive relations.                                  *)

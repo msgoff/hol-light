@@ -5258,9 +5258,18 @@ let HOMOLOGY_ADDITIVITY_AXIOM_GEN = prove
               GROUP_EPIMORPHISM_ALT; GROUP_MONOMORPHISM_ALT] THEN
   MATCH_MP_TAC(TAUT `p /\ (p ==> q /\ r) ==> (p /\ q) /\ (p /\ r)`) THEN
   CONJ_TAC THENL
-   [MATCH_MP_TAC ABELIAN_GROUP_HOMOMORPHISM_GROUP_SUM THEN
-    REWRITE_TAC[homology_group; ETA_AX; ABELIAN_RELATIVE_HOMOLOGY_GROUP] THEN
-    REWRITE_TAC[GROUP_HOMOMORPHISM_HOM_INDUCED];
+   [MATCH_MP_TAC GROUP_HOMOMORPHISM_EQ THEN
+    EXISTS_TAC `\x. group_sum (homology_group (&p,top:A topology)) u
+                 (\v. hom_induced (&p) (subtopology top v,{}) (top,{})
+                                       (\z. z) (x v))` THEN
+    CONJ_TAC THENL
+     [MATCH_MP_TAC ABELIAN_GROUP_HOMOMORPHISM_GROUP_SUM THEN
+      REWRITE_TAC[homology_group; ETA_AX; ABELIAN_RELATIVE_HOMOLOGY_GROUP] THEN
+      REWRITE_TAC[GROUP_HOMOMORPHISM_HOM_INDUCED];
+      REPEAT GEN_TAC THEN REWRITE_TAC[] THEN DISCH_TAC THEN
+      MATCH_MP_TAC(GSYM ABELIAN_GROUP_SUM_ITERATE) THEN
+      ASM_REWRITE_TAC[homology_group; ETA_AX; ABELIAN_RELATIVE_HOMOLOGY_GROUP;
+                      HOM_INDUCED]];
     DISCH_TAC] THEN
   REWRITE_TAC[group_image] THEN
   SUBGOAL_THEN
@@ -8393,7 +8402,7 @@ let BROUWER_DEGREE2_IFF = prove
     (BINDER_CONV o LAND_CONV o funpow 2 RAND_CONV) [GSYM th]) THEN
   ASM_SIMP_TAC[CARRIER_SUBGROUP_GENERATED_BY_SING; FORALL_IN_GSPEC;
                BROUWER_DEGREE2; GROUP_ZPOW] THEN
-  ASM_SIMP_TAC[IN_UNIV; GSYM GROUP_ZPOW_MUL; GROUP_ZPOW_EQ] THEN
+  ASM_SIMP_TAC[IN_UNIV; GSYM GROUP_ZPOW_MUL; GROUP_ZPOW_EQ_ALT] THEN
   REPEAT GEN_TAC THEN ASM_SIMP_TAC[GROUP_ZPOW_EQ_ID] THEN
   MATCH_MP_TAC(INTEGER_RULE
    `d:int = &0 ==> (d divides n * a - n * b <=> d divides n \/ b = a)`) THEN
@@ -8413,7 +8422,7 @@ let BROUWER_DEGREE2_UNIQUE = prove
   REWRITE_TAC[cyclic_group; LEFT_IMP_EXISTS_THM] THEN
   X_GEN_TAC `a:((num->real)->num->real)frag->bool` THEN STRIP_TAC THEN
   FIRST_X_ASSUM(MP_TAC o SPEC `a:((num->real)->num->real)frag->bool`) THEN
-  ASM_SIMP_TAC[BROUWER_DEGREE2; GROUP_ZPOW_EQ] THEN
+  ASM_SIMP_TAC[BROUWER_DEGREE2; GROUP_ZPOW_EQ_ALT] THEN
   MATCH_MP_TAC(INTEGER_RULE `d:int = &0 ==> d divides b - a ==> a = b`) THEN
   ASM_SIMP_TAC[INT_OF_NUM_EQ; GSYM INFINITE_CYCLIC_SUBGROUP_ORDER] THEN
   MP_TAC INFINITE_INTEGER_GROUP THEN MATCH_MP_TAC EQ_IMP THEN
@@ -8433,8 +8442,9 @@ let BROUWER_DEGREE2_UNIQUE_GENERATOR = prove
   ASM_CASES_TAC
    `a IN group_carrier(reduced_homology_group (&p,nsphere p))`
   THENL
-   [ASM_SIMP_TAC[BROUWER_DEGREE2; GROUP_ZPOW_EQ] THEN
-    MATCH_MP_TAC(INTEGER_RULE `d:int = &0 ==> d divides b - a ==> a = b`) THEN
+   [ASM_SIMP_TAC[BROUWER_DEGREE2; GROUP_ZPOW_EQ_ALT] THEN
+    MATCH_MP_TAC(INTEGER_RULE
+     `d:int = &0 ==> d divides b - a ==> a = b`) THEN
     ASM_SIMP_TAC[INT_OF_NUM_EQ; GSYM INFINITE_CYCLIC_SUBGROUP_ORDER] THEN
     MP_TAC INFINITE_INTEGER_GROUP THEN MATCH_MP_TAC EQ_IMP THEN
     CONV_TAC SYM_CONV THEN MATCH_MP_TAC ISOMORPHIC_GROUP_INFINITENESS THEN
@@ -9111,7 +9121,7 @@ let BORSUK_ODD_MAPPING_DEGREE_STEP = prove
    [`relative_homology_group (&n,nsphere n,equator n)`;
     `u:((num->real)->num->real)frag->bool`;
     `brouwer_degree2 n f`; `a - b:int`]
-   GROUP_ZPOW_EQ) THEN
+   GROUP_ZPOW_EQ_ALT) THEN
   ASM_REWRITE_TAC[] THEN
   SUBGOAL_THEN
    `group_element_order (relative_homology_group (&n,nsphere n,equator n)) u =
@@ -9574,7 +9584,7 @@ let RELATIVE_HOMOLOGY_GROUP_EUCLIDEAN_COMPLEMENT_STEP = prove
   ABBREV_TAC
     `squashable =
       \t s. !x t'. x IN s /\
-                   (x(n+1) <= t' /\ t' <= t \/ t <= t' /\ t' <= x(n+1))
+                   (x(n+1):real <= t' /\ t' <= t \/ t <= t' /\ t' <= x(n+1))
                    ==> ret t' x IN s` THEN
   SUBGOAL_THEN `!t:real. squashable t (topspace(euclidean_space(n + 1))):bool`
   ASSUME_TAC THENL
